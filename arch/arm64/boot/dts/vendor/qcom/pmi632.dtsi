@@ -780,3 +780,34 @@
 		};
 	};
 };
+
+&spmi_bus {
+    pmic@0 {
+        charger@1000 {
+            compatible = "qcom,pm632-charger";
+            reg = <0x1000>;
+            interrupt-parent = <&spmi_bus>;
+            interrupts = <0x0 0x10 0x0>;
+            status = "okay";
+
+            // Charging parameters
+            qcom,fastchg-current-ma = <3000>;    // Fast charge 3A
+            qcom,usb-icl-ma = <3000>;             // USB input current limit 3A
+            qcom,dc-icl-ma = <3000>;              // DC input limit 3A
+
+            // Thermal mitigation
+            qcom,thermal-mitigation;
+            qcom,thermal-mitigation-temp = <45000>;  // Mitigate if > 45°C
+
+            // Battery Over-Voltage Protection
+            qcom,vbat-ovp-mv = <4500>;    // Protect over 4.5V
+
+            // Enable charging
+            qcom,charging-disabled = <0>;
+
+            // Some additional flags for safety
+            qcom,jeita-hard-threshold-mv = <4200>; // JEITA safe range
+            qcom,jeita-cold-threshold-mv = <4000>;
+        };
+    };
+};
