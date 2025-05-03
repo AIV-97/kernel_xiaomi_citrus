@@ -171,23 +171,26 @@
 		};
 
 		pmi632_charger: qcom,qpnp-smb5 {
-			compatible = "qcom,qpnp-smb5";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			#cooling-cells = <2>;
-			qcom,chg-term-src = <1>;
-			qcom,chg-term-current-ma = <(-200)>;
-			qcom,usb-icl-ua = <2000000>;
+            compatible = "qcom,qpnp-smb5";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            #cooling-cells = <2>;
+            qcom,chg-term-src = <1>;
+            qcom,chg-term-current-ma = <200>;
 
-			qcom,pmic-revid = <&pmi632_revid>;
-			io-channels = <&pmi632_vadc ADC_USB_IN_V_16>,
-				      <&pmi632_vadc ADC_USB_IN_I>,
-				      <&pmi632_vadc ADC_CHG_TEMP>,
-				      <&pmi632_vadc ADC_DIE_TEMP>;
-			io-channel-names = "usb_in_voltage",
-					   "usb_in_current",
-					   "chg_temp",
-					   "die_temp";
+                qcom,pmic-revid = <&pmi632_revid>;
+                io-channels = <&pmi632_vadc ADC_USB_IN_V_16>,
+                               <&pmi632_vadc ADC_USB_IN_I>,
+                               <&pmi632_vadc ADC_CHG_TEMP>,
+                               <&pmi632_vadc ADC_DIE_TEMP>;
+                io-channel-names = "usb_in_voltage",
+                                   "usb_in_current",
+                                   "chg_temp",
+                                   "die_temp";
+
+                qcom,usb-icl-ua = <2000000>;
+                qcom,disable-sw-thermal-regulation;
+                qcom,disable-fcc-restriction;
 
 			qcom,chgr@1000 {
 				reg = <0x1000 0x100>;
