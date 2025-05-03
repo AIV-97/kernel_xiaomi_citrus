@@ -2,6 +2,7 @@
 #include <dt-bindings/spmi/spmi.h>
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 
+
 &spmi_bus {
 	qcom,pmi632@2 {
 		compatible = "qcom,spmi-pmic";
@@ -132,6 +133,25 @@
 			};
 
 		};
+		
+		charger@1000 {
+            compatible = "qcom,pm632-charger";
+            reg = <0x1000>;
+            interrupt-parent = <&spmi_bus>;
+            interrupts = <0x0 0x10 0x0>;
+            status = "okay";
+
+            qcom,fastchg-current-ma = <3000>;
+            qcom,usb-icl-ma = <3000>;
+            qcom,dc-icl-ma = <3000>;
+            
+            qcom,thermal-mitigation;
+            qcom,thermal-mitigation-temp = <45000>;
+            qcom,vbat-ovp-mv = <4500>;
+            qcom,charging-disabled = <0>;
+            qcom,jeita-hard-threshold-mv = <4200>;
+            qcom,jeita-cold-threshold-mv = <4000>;
+        };
 
 		pmi632_adc_tm: adc_tm@3500 {
 			compatible = "qcom,adc-tm5";
@@ -308,6 +328,11 @@
                 data-role = "dual";
                 power-role = "dual";
                 try-power-role = "sink";
+                qcom,orientation-switch;
+                qcom,drp-timeout-ms = <1000>;
+                
+                qcom,enable-typec;
+                qcom,typec = <&typec>;
 				interrupts =
 					<0x2 0x15 0x0 IRQ_TYPE_EDGE_BOTH>,
 					<0x2 0x15 0x1 IRQ_TYPE_EDGE_BOTH>,
@@ -809,35 +834,4 @@
 			};
 		};
 	};
-};
-
-&spmi_bus {
-    pmic@0 {
-        charger@1000 {
-            compatible = "qcom,pm632-charger";
-            reg = <0x1000>;
-            interrupt-parent = <&spmi_bus>;
-            interrupts = <0x0 0x10 0x0>;
-            status = "okay";
-
-            // Charging parameters
-            qcom,fastchg-current-ma = <3000>;    // Fast charge 3A
-            qcom,usb-icl-ma = <3000>;             // USB input current limit 3A
-            qcom,dc-icl-ma = <3000>;              // DC input limit 3A
-
-            // Thermal mitigation
-            qcom,thermal-mitigation;
-            qcom,thermal-mitigation-temp = <45000>;  // Mitigate if > 45°C
-
-            // Battery Over-Voltage Protection
-            qcom,vbat-ovp-mv = <4500>;    // Protect over 4.5V
-
-            // Enable charging
-            qcom,charging-disabled = <0>;
-
-            // Some additional flags for safety
-            qcom,jeita-hard-threshold-mv = <4200>; // JEITA safe range
-            qcom,jeita-cold-threshold-mv = <4000>;
-        };
-    };
 };
