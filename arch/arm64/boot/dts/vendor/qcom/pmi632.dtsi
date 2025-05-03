@@ -301,8 +301,13 @@
 						  "usbin-icl-change";
 			};
 
-			qcom,typec@1500 {
-				reg = <0x1500 0x100>;
+            typec: qcom,typec@1500 {
+                compatible = "qcom,pmi632-typec";
+                reg = <0x1500 0x100>;
+                status = "okay";
+                data-role = "dual";
+                power-role = "dual";
+                try-power-role = "sink";
 				interrupts =
 					<0x2 0x15 0x0 IRQ_TYPE_EDGE_BOTH>,
 					<0x2 0x15 0x1 IRQ_TYPE_EDGE_BOTH>,

@@ -2515,6 +2515,13 @@
 	status = "ok";
 };
 
+&typec {
+    status = "okay";
+    data-role = "dual";
+    power-role = "dual";
+    try-power-role = "sink";
+};
+
 &gcc_vcodec0_gdsc {
 	qcom,support-hw-trigger;
 	status = "ok";
