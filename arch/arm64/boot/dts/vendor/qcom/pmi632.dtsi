@@ -188,9 +188,13 @@
                                    "chg_temp",
                                    "die_temp";
 
-                qcom,usb-icl-ua = <2000000>;
+                qcom,usb-icl-ua = <3000000>;                
                 qcom,disable-sw-thermal-regulation;
                 qcom,disable-fcc-restriction;
+                qcom,hvdcp-enable;
+                qcom,hvdcp-auth-alg-en;
+                qcom,auto-icl-enable;
+                qcom,usb-connector-type = "typec";
 
 			qcom,chgr@1000 {
 				reg = <0x1000 0x100>;
