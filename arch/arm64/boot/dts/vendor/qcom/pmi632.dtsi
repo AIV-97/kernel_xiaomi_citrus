@@ -176,7 +176,7 @@
             #size-cells = <1>;
             #cooling-cells = <2>;
             qcom,chg-term-src = <1>;
-            qcom,chg-term-current-ma = <200>;
+            qcom,chg-term-current-ma = <(-200)>;
 
                 qcom,pmic-revid = <&pmi632_revid>;
                 io-channels = <&pmi632_vadc ADC_USB_IN_V_16>,
