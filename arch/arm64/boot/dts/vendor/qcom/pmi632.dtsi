@@ -195,6 +195,15 @@
                 qcom,hvdcp-auth-alg-en;
                 qcom,auto-icl-enable;
                 qcom,usb-connector-type = "typec";
+                
+                qcom,step-charging-enable;
+                qcom,step-charging-config = <&step_chg_config>;
+
+                step_chg_config: qcom,step-chg-config {
+                qcom,step-chg-config-temp-limits = <0 44>;
+                qcom,step-chg-config-vbatt-limits = <3600 3700 4100>;
+                qcom,step-chg-config-curr-limits = <1800000 1500000 1000000>;
+            };
 
 			qcom,chgr@1000 {
 				reg = <0x1000 0x100>;
