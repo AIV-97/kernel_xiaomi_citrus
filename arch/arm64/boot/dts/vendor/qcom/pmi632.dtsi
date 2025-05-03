@@ -169,6 +169,13 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+		
+		usb: usb@a600000 {
+            compatible = "qcom,dwc3";
+            reg = <0x0a600000 0x100000>;
+            qcom,usb-phy-enable-pipe-clk;
+            qcom,select-utmi-as-pipe-clk;
+        };
 
 		pmi632_charger: qcom,qpnp-smb5 {
             compatible = "qcom,qpnp-smb5";
@@ -195,6 +202,7 @@
                 qcom,hvdcp-auth-alg-en;
                 qcom,auto-icl-enable;
                 qcom,usb-connector-type = "typec";
+                qcom,sec-charger-config = "parallel";
                 
                 qcom,step-charging-enable;
                 qcom,step-charging-config = <&step_chg_config>;
