@@ -1,0 +1,51 @@
+/dts-v1/;
+
+#include "sm6115.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. Bengal 1Gb DDR HD+ SoC";
+	compatible = "qcom,bengal";
+	qcom,msm-id = <0x1a1 0x10000 0x1bc 0x10000>;
+	interrupt-parent = <0x01>;
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	qcom,board-id = <0x00 0x303>;
+
+	mem-offline {
+		compatible = "qcom,mem-offline";
+		offline-sizes = <0x01 0x40000000 0x00 0x40000000 0x01 0xc0000000 0x00 0x80000000 0x02 0xc0000000 0x01 0x40000000>;
+		granule = <0x200>;
+	};
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+	firmware {
+		phandle = <0x1dc>;
+
+		android {
+			compatible = "android,firmware";
+
+			vbmeta {
+				compatible = "android,vbmeta";
+				parts = "vbmeta,boot,system,vendor,dtbo,recovery";
+			};
+
+			fstab {
+				compatible = "android,fstab";
+
+				vendor {
+					compatible = "android,vendor";
+					dev = "/dev/block/platform/soc/4744000.sdhci/by-name/vendor";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait";
+					status = "ok";
+				};
+			};
+		};
+	};
+	chosen {
+		bootargs = "rcupdate.rcu_expedited=1 rcu_nocbs=0-7 kpti=off";
+	};
+};
