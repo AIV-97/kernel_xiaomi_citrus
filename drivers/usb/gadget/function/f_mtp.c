@@ -825,11 +825,6 @@ static void send_file_work(struct work_struct *data)
 	offset = dev->xfer_file_offset;
 	count = dev->xfer_file_length;
 
-	if (count < 0) {
-		dev->xfer_result = -EINVAL;
-		return;
-	}
-
 	mtp_log("(%lld %lld)\n", offset, count);
 
 	if (dev->xfer_send_header) {
@@ -943,11 +938,6 @@ static void receive_file_work(struct work_struct *data)
 	filp = dev->xfer_file;
 	offset = dev->xfer_file_offset;
 	count = dev->xfer_file_length;
-
-	if (count < 0) {
-		dev->xfer_result = -EINVAL;
-		return;
-	}
 
 	mtp_log("(%lld)\n", count);
 	if (!IS_ALIGNED(count, dev->ep_out->maxpacket))
@@ -1138,14 +1128,17 @@ static long mtp_send_receive_ioctl(struct file *fp, unsigned int code,
 	 * in kernel context, which is necessary for vfs_read and
 	 * vfs_write to use our buffers in the kernel address space.
 	 */
-	queue_work(dev->wq, work);
-	/* wait for operation to complete */
-	flush_workqueue(dev->wq);
-	fput(filp);
+	dev->xfer_result = 0;
+	if (dev->xfer_file_length) {
+		queue_work(dev->wq, work);
+		/* wait for operation to complete */
+		flush_workqueue(dev->wq);
 
-	/* read the result */
-	smp_rmb();
+		/* read the result */
+		smp_rmb();
+	}
 	ret = dev->xfer_result;
+	fput(filp);
 
 fail:
 	spin_lock_irq(&dev->lock);
@@ -1421,12 +1414,6 @@ mtp_function_bind(struct usb_configuration *c, struct usb_function *f)
 	dev->cdev = cdev;
 	mtp_log("dev: %pK\n", dev);
 
-	/* ChipIdea controller supports 16K request length for IN endpoint */
-	if (cdev->gadget->is_chipidea && mtp_tx_req_len > 16384) {
-		mtp_log("Truncating Tx Req length to 16K for ChipIdea\n");
-		mtp_tx_req_len = 16384;
-	}
-
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);
 	if (id < 0)
@@ -1605,7 +1592,7 @@ static int debug_mtp_read_stats(struct seq_file *s, void *unused)
 	}
 
 	seq_printf(s, "vfs_write(time in usec) min:%d\t max:%d\t avg:%d\n",
-				min, max, (iteration ? (sum / iteration) : 0));
+						min, max, sum / iteration);
 	min = max = sum = iteration = 0;
 	seq_puts(s, "\n=======================\n");
 	seq_puts(s, "MTP Read Stats:\n");
@@ -1627,7 +1614,7 @@ static int debug_mtp_read_stats(struct seq_file *s, void *unused)
 	}
 
 	seq_printf(s, "vfs_read(time in usec) min:%d\t max:%d\t avg:%d\n",
-				min, max, (iteration ? (sum / iteration) : 0));
+						min, max, sum / iteration);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	return 0;
 }

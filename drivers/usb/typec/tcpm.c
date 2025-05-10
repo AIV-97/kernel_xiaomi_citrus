@@ -31,7 +31,7 @@
 
 #define FOREACH_STATE(S)			\
 	S(INVALID_STATE),			\
-	S(TOGGLING),			\
+	S(DRP_TOGGLING),			\
 	S(SRC_UNATTACHED),			\
 	S(SRC_ATTACH_WAIT),			\
 	S(SRC_ATTACHED),			\
@@ -473,7 +473,7 @@ static void tcpm_log(struct tcpm_port *port, const char *fmt, ...)
 	/* Do not log while disconnected and unattached */
 	if (tcpm_port_is_disconnected(port) &&
 	    (port->state == SRC_UNATTACHED || port->state == SNK_UNATTACHED ||
-	     port->state == TOGGLING))
+	     port->state == DRP_TOGGLING))
 		return;
 
 	va_start(args, fmt);
@@ -1006,21 +1006,7 @@ static bool svdm_consume_svids(struct tcpm_port *port, const __le32 *payload,
 		pmdata->svids[pmdata->nsvids++] = svid;
 		tcpm_log(port, "SVID %d: 0x%x", pmdata->nsvids, svid);
 	}
-
-	/*
-	 * PD3.0 Spec 6.4.4.3.2: The SVIDs are returned 2 per VDO (see Table
-	 * 6-43), and can be returned maximum 6 VDOs per response (see Figure
-	 * 6-19). If the Respondersupports 12 or more SVID then the Discover
-	 * SVIDs Command Shall be executed multiple times until a Discover
-	 * SVIDs VDO is returned ending either with a SVID value of 0x0000 in
-	 * the last part of the last VDO or with a VDO containing two SVIDs
-	 * with values of 0x0000.
-	 *
-	 * However, some odd dockers support SVIDs less than 12 but without
-	 * 0x0000 in the last VDO, so we need to break the Discover SVIDs
-	 * request and return false here.
-	 */
-	return cnt == 7;
+	return true;
 abort:
 	tcpm_log(port, "SVID_DISCOVERY_MAX(%d) too low!", SVID_DISCOVERY_MAX);
 	return false;
@@ -2575,16 +2561,20 @@ static int tcpm_set_charge(struct tcpm_port *port, bool charge)
 	return 0;
 }
 
-static bool tcpm_start_toggling(struct tcpm_port *port, enum typec_cc_status cc)
+static bool tcpm_start_drp_toggling(struct tcpm_port *port,
+				    enum typec_cc_status cc)
 {
 	int ret;
 
-	if (!port->tcpc->start_toggling)
-		return false;
+	if (port->tcpc->start_drp_toggling &&
+	    port->port_type == TYPEC_PORT_DRP) {
+		tcpm_log_force(port, "Start DRP toggling");
+		ret = port->tcpc->start_drp_toggling(port->tcpc, cc);
+		if (!ret)
+			return true;
+	}
 
-	tcpm_log_force(port, "Start toggling");
-	ret = port->tcpc->start_toggling(port->tcpc, port->port_type, cc);
-	return ret == 0;
+	return false;
 }
 
 static void tcpm_set_cc(struct tcpm_port *port, enum typec_cc_status cc)
@@ -2741,11 +2731,11 @@ static void tcpm_reset_port(struct tcpm_port *port)
 
 static void tcpm_detach(struct tcpm_port *port)
 {
-	if (tcpm_port_is_disconnected(port))
-		port->hard_reset_count = 0;
-
 	if (!port->attached)
 		return;
+
+	if (tcpm_port_is_disconnected(port))
+		port->hard_reset_count = 0;
 
 	tcpm_reset_port(port);
 }
@@ -2878,15 +2868,15 @@ static void run_state_machine(struct tcpm_port *port)
 
 	port->enter_state = port->state;
 	switch (port->state) {
-	case TOGGLING:
+	case DRP_TOGGLING:
 		break;
 	/* SRC states */
 	case SRC_UNATTACHED:
 		if (!port->non_pd_role_swap)
 			tcpm_swap_complete(port, -ENOTCONN);
 		tcpm_src_detach(port);
-		if (tcpm_start_toggling(port, tcpm_rp_cc(port))) {
-			tcpm_set_state(port, TOGGLING, 0);
+		if (tcpm_start_drp_toggling(port, tcpm_rp_cc(port))) {
+			tcpm_set_state(port, DRP_TOGGLING, 0);
 			break;
 		}
 		tcpm_set_cc(port, tcpm_rp_cc(port));
@@ -3084,8 +3074,8 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_swap_complete(port, -ENOTCONN);
 		tcpm_pps_complete(port, -ENOTCONN);
 		tcpm_snk_detach(port);
-		if (tcpm_start_toggling(port, TYPEC_CC_RD)) {
-			tcpm_set_state(port, TOGGLING, 0);
+		if (tcpm_start_drp_toggling(port, TYPEC_CC_RD)) {
+			tcpm_set_state(port, DRP_TOGGLING, 0);
 			break;
 		}
 		tcpm_set_cc(port, TYPEC_CC_RD);
@@ -3112,7 +3102,11 @@ static void run_state_machine(struct tcpm_port *port)
 				       tcpm_try_src(port) ? SRC_TRY
 							  : SNK_ATTACHED,
 				       0);
+		else
+			/* Wait for VBUS, but not forever */
+			tcpm_set_state(port, PORT_RESET, PD_T_PS_SOURCE_ON);
 		break;
+
 	case SRC_TRY:
 		port->try_src_count++;
 		tcpm_set_cc(port, tcpm_rp_cc(port));
@@ -3496,7 +3490,7 @@ static void run_state_machine(struct tcpm_port *port)
 		 */
 		tcpm_set_pwr_role(port, TYPEC_SOURCE);
 		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
-		tcpm_set_state(port, SRC_STARTUP, PD_T_SWAP_SRC_START);
+		tcpm_set_state(port, SRC_STARTUP, 0);
 		break;
 
 	case VCONN_SWAP_ACCEPT:
@@ -3648,7 +3642,7 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 						       : "connected");
 
 	switch (port->state) {
-	case TOGGLING:
+	case DRP_TOGGLING:
 		if (tcpm_port_is_debug(port) || tcpm_port_is_audio(port) ||
 		    tcpm_port_is_source(port))
 			tcpm_set_state(port, SRC_ATTACH_WAIT, 0);
@@ -3879,8 +3873,7 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 	case SNK_TRYWAIT_DEBOUNCE:
 		break;
 	case SNK_ATTACH_WAIT:
-	case SNK_DEBOUNCED:
-		/* Do nothing, as TCPM is still waiting for vbus to reaach VSAFE5V to connect */
+		tcpm_set_state(port, SNK_UNATTACHED, 0);
 		break;
 
 	case SNK_NEGOTIATE_CAPABILITIES:

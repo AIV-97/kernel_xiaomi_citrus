@@ -20,6 +20,7 @@ struct qdss_request {
 	struct scatterlist *sg;
 	unsigned int num_sgs;
 	unsigned int num_mapped_sgs;
+	struct completion write_done;
 };
 
 struct usb_qdss_ch {
@@ -37,13 +38,7 @@ enum qdss_state {
 	USB_QDSS_DISCONNECT,
 	USB_QDSS_CTRL_READ_DONE,
 	USB_QDSS_DATA_WRITE_DONE,
-};
-
-struct qdss_req {
-	struct usb_request *usb_req;
-	struct completion write_done;
-	struct qdss_request *qdss_req;
-	struct list_head list;
+	USB_QDSS_CTRL_WRITE_DONE,
 };
 
 #if IS_ENABLED(CONFIG_USB_F_QDSS)
@@ -51,9 +46,12 @@ struct usb_qdss_ch *usb_qdss_open(const char *name, void *priv,
 	void (*notify)(void *priv, unsigned int event,
 		struct qdss_request *d_req, struct usb_qdss_ch *ch));
 void usb_qdss_close(struct usb_qdss_ch *ch);
-int usb_qdss_alloc_req(struct usb_qdss_ch *ch, int n_write);
+int usb_qdss_alloc_req(struct usb_qdss_ch *ch, int n_write, int n_read);
 void usb_qdss_free_req(struct usb_qdss_ch *ch);
+int usb_qdss_read(struct usb_qdss_ch *ch, struct qdss_request *d_req);
 int usb_qdss_write(struct usb_qdss_ch *ch, struct qdss_request *d_req);
+int usb_qdss_ctrl_write(struct usb_qdss_ch *ch, struct qdss_request *d_req);
+int usb_qdss_ctrl_read(struct usb_qdss_ch *ch, struct qdss_request *d_req);
 #else
 static inline struct usb_qdss_ch *usb_qdss_open(const char *name, void *priv,
 		void (*n)(void *, unsigned int event,
@@ -62,11 +60,27 @@ static inline struct usb_qdss_ch *usb_qdss_open(const char *name, void *priv,
 	return ERR_PTR(-ENODEV);
 }
 
+static inline int usb_qdss_read(struct usb_qdss_ch *c, struct qdss_request *d)
+{
+	return -ENODEV;
+}
+
 static inline int usb_qdss_write(struct usb_qdss_ch *c, struct qdss_request *d)
 {
 	return -ENODEV;
 }
 
+static inline int usb_qdss_ctrl_write(struct usb_qdss_ch *c,
+		struct qdss_request *d)
+{
+	return -ENODEV;
+}
+
+static inline int usb_qdss_ctrl_read(struct usb_qdss_ch *c,
+		struct qdss_request *d)
+{
+	return -ENODEV;
+}
 static inline int usb_qdss_alloc_req(struct usb_qdss_ch *c, int n_wr, int n_rd)
 {
 	return -ENODEV;
